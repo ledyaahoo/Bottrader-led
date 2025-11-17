@@ -1,0 +1,38 @@
+name: Bitget SuperBot RealTime
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"    # every 5 minutes to ensure runner kick (the bot auto-restarts itself too)
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install websockets requests
+
+      - name: Run bot
+        env:
+          BITGET_API_KEY: ${{ secrets.BITGET_API_KEY }}
+          BITGET_API_SECRET: ${{ secrets.BITGET_API_SECRET }}
+          BITGET_API_PASSPHRASE: ${{ secrets.BITGET_API_PASSPHRASE }}
+          BITGET_ENABLE_TRADING: "false"   # set true only when ready for live
+        run: |
+          python main.py
+          
