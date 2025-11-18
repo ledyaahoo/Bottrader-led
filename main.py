@@ -1,3 +1,8 @@
+import sys
+import os
+sys.path.append(os.getcwd())
+
+
 # main.py
 import time
 from engine import Engine
