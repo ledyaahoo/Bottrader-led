@@ -1,29 +1,14 @@
 # config.py
-# Ultra-Safe Hybrid Bot 2.1 Minimal
+# Ultra-Safe Hybrid Bot Final 2.1
 
-# API Endpoint
 REST_URL = "https://api.bitget.com"
 WS_URL = "wss://ws.bitget.com/mix/v1/stream"
 
-# Normal Mode → Stabil
-NORMAL_PAIRS = [
-    "BTCUSDT",
-    "ETHUSDT",
-    "SOLUSDT",
-    "LTCUSDT",
-    "ASTERUSDT",
-    "HYPEUSDT"
-]
+# Normal pairs
+NORMAL_PAIRS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LTCUSDT", "ASTERUSDT", "HYPEUSDT"]
 
-# Sniper Mode → Meme / Volatil
-SNIPER_PAIRS = [
-    "PEPEUSDT",
-    "SHIBUSDT",
-    "FLOKIUSDT",
-    "DASHUSDT",
-    "XMRUSDT",
-    "BONKUSDT"
-]
+# Sniper pairs
+SNIPER_PAIRS = ["PEPEUSDT", "SHIBUSDT", "FLOKIUSDT", "DASHUSDT", "XMRUSDT", "BONKUSDT"]
 
 # Leverage
 LEVERAGE_NORMAL = 25
@@ -34,7 +19,7 @@ INITIAL_BALANCE = 3
 TARGET_NORMAL = 30
 TARGET_SNIPER = 40
 
-# Max Order per running
+# Max order per running
 MAX_ORDER_NORMAL = 3
 MAX_ORDER_SNIPER = 2
 
