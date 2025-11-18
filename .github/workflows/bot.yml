@@ -35,3 +35,7 @@ jobs:
         run: |
           python3 main.py
           
+          - name: List files
+  run: ls -R
+  
+          
