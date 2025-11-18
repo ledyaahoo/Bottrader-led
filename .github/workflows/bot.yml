@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
   schedule:
-    - cron: "0 0 * * *"   # restart otomatis tiap hari jam 00:00 UTC
+    - cron: "0 0 * * *"
 
 jobs:
   run-bot:
@@ -20,8 +20,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Export Secrets
         run: |
@@ -31,11 +30,9 @@ jobs:
           echo "TG_BOT=${{ secrets.TG_BOT }}" >> $GITHUB_ENV
           echo "TG_CHAT=${{ secrets.TG_CHAT }}" >> $GITHUB_ENV
 
+      - name: List files (debug)
+        run: ls -l
+
       - name: Run Bot
-        run: |
-          python3 main.py
-          
-          - name: List files
-  run: ls -R
-  
-          
+        run: python3 main.py
+        
