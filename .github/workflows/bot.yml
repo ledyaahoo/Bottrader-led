@@ -1,0 +1,37 @@
+name: UltraSafe-Hybrid-Bot
+
+on:
+  workflow_dispatch:
+  push:
+  schedule:
+    - cron: "0 0 * * *"   # restart otomatis tiap hari jam 00:00 UTC
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Export Secrets
+        run: |
+          echo "API_KEY=${{ secrets.BITGET_KEY }}" >> $GITHUB_ENV
+          echo "API_SECRET=${{ secrets.BITGET_SECRET }}" >> $GITHUB_ENV
+          echo "API_PASSPHRASE=${{ secrets.BITGET_PASS }}" >> $GITHUB_ENV
+          echo "TG_BOT=${{ secrets.TG_BOT }}" >> $GITHUB_ENV
+          echo "TG_CHAT=${{ secrets.TG_CHAT }}" >> $GITHUB_ENV
+
+      - name: Run Bot
+        run: |
+          python3 main.py
+          
