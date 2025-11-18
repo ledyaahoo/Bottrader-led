@@ -1,18 +1,18 @@
-# main.py
-import os
+import time
 from config import NORMAL_PAIRS, SNIPER_PAIRS
 
 def start_bot():
     print("Starting Ultra-Safe Hybrid Bot...")
-    print(f"Normal pairs: {NORMAL_PAIRS}")
-    print(f"Sniper pairs: {SNIPER_PAIRS}")
+    while True:
+        # Scan normal pairs
+        for pair in NORMAL_PAIRS:
+            print(f"[NORMAL] Scanning {pair} ...")
+            # TODO: panggil normal_engine untuk cek entry
 
-    # Placeholder: integrasi engine, websocket, strategi disini
-    for pair in NORMAL_PAIRS:
-        print(f"Scan normal pair: {pair}")
-    for pair in SNIPER_PAIRS:
-        print(f"Scan sniper pair: {pair}")
+        # Scan sniper pairs
+        for pair in SNIPER_PAIRS:
+            print(f"[SNIPER] Scanning {pair} ...")
+            # TODO: panggil sniper_engine untuk cek entry
 
-if __name__ == "__main__":
-    start_bot()
-    
+        # Delay sebentar sebelum scanning lagi
+        time.sleep(1)  # 1 detik
