@@ -1,49 +1,31 @@
-import os
+# config.py
 
-# =========================
-# API Settings (Secret dari Environment)
-# =========================
-BITGET_API_KEY = os.getenv("BITGET_API_KEY")
-BITGET_API_SECRET = os.getenv("BITGET_API_SECRET")
-BITGET_API_PASSWORD = os.getenv("BITGET_API_PASSWORD")
+# API
+REST_URL = "https://api.bitget.com"
+WS_URL = "wss://ws.bitget.com/mix/v1/stream"
 
-# =========================
-# General Settings
-# =========================
-MODE = "LIVE"  # LIVE / TEST
-MARGIN_TYPE = "CROSS"
-TIMEZONE = "Asia/Jakarta"
+API_KEY = "YOUR_KEY"
+API_SECRET = "YOUR_SECRET"
+API_PASSPHRASE = "YOUR_PASSPHRASE"
 
-# =========================
-# Pairs
-NORMAL_PAIRS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LTCUSDT", "UNIUSDT", "HYPEUSDT", "ASTERUSDT"]
-MEME_PAIRS = ["PEPEUSDT", "SHIBUSDT", "FLOKIUSDT", "WIFUSDT", "BONKUSDT", "AVNTUSDT",
-              "XPLUSDT", "MANTAUSDT", "WIFUUSDT", "DASHUSDT", "ZCASHUSDT", "BEATUSDT", "XMRUSDT"]
+# Trading Pairs
+NORMAL_PAIRS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "LTCUSDT", "ASTERUSDT"]
+SNIPER_PAIRS = ["PEPEUSDT", "SHIBUSDT", "FLOKIUSDT", "DASHUSDT", "XMRUSDT"]
 
-# =========================
 # Leverage
 LEVERAGE_NORMAL = 25
-LEVERAGE_SNIPER_SMALL = 13
-LEVERAGE_SNIPER_BIG = 20
-LEVERAGE_SNIPER_BIG_MAX = 25
+LEVERAGE_SNIPER = 20
 
-# =========================
-# Target Profit
-NORMAL_TARGET_INITIAL = 30
-NORMAL_MULTIPLIER = 3
-SNIPER_TARGET_INITIAL = 40
-SNIPER_MULTIPLIER = 1.5
-MAX_PROFIT = 3000  # setelah profit > 3000, target = x1
+# Mode Limits
+MAX_ORDER_NORMAL = 3
+MAX_ORDER_SNIPER = 2
 
-# =========================
-# Orders
-MAX_ORDER_INITIAL = 5  # 3 normal + 2 sniper
-MAX_ORDER_TARGET2 = 6
-DELTA_BUFFER = 0.03
-FAST_MODE = 0.3  # 0.3 detik lebih cepat dari ritel
+# Risk
+INITIAL_BALANCE = 3  # Starting with $3
+DAILY_STOPLOSS = 1
+DAILY_TARGET = 30  # base daily target for normal
+TARGET_NORMAL = 30
+TARGET_SNIPER = 40
 
-# =========================
-# Margin Allocation
-NORMAL_MARGIN_RATIO = 0.4
-SNIPER_MARGIN_RATIO = 0.3
-RESERVE_MARGIN_RATIO = 0.3
+MODE_TARGET = {"normal": TARGET_NORMAL, "sniper": TARGET_SNIPER}
+MODE_STOPLOSS = {"normal": 1, "sniper": 1}
