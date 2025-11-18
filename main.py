@@ -1,192 +1,175 @@
-import os
-import time
 import asyncio
-import traceback
-from datetime import datetime, timedelta
-import pytz
-
-from engine import TradingEngine
-from profit_tracker import ProfitTracker
-from risk_manager import RiskManager
-from strategy_normal import NormalStrategy
-from strategy_meme import MemeSnipeStrategy
+import datetime
+from engine_normal import EngineNormalWS
+from engine_meme import EngineMemeWS
 from utils import log, colored
 
-# ===============================
-# REGION: INISIASI UTAMA
-# ===============================
-
-API_KEY = os.getenv("BITGET_API_KEY")
-API_SECRET = os.getenv("BITGET_API_SECRET")
-API_PASS = os.getenv("BITGET_API_PASS")
-
-if not API_KEY or not API_SECRET or not API_PASS:
-    raise Exception("❌ Environment Variable untuk API BITGET belum di set di secret repo!")
-
-MODE = os.getenv("BOT_MODE", "NORMAL").upper()
-
-SUPPORTED_MODES = ["NORMAL", "MEME"]
-
-if MODE not in SUPPORTED_MODES:
-    raise Exception("❌ BOT_MODE tidak valid (NORMAL / MEME)")
-
-# ===============================
-# WAKTU WIB
-# ===============================
-
-WIB = pytz.timezone("Asia/Jakarta")
-
-def now_wib():
-    return datetime.now(WIB)
-
-# ===============================
-# TARGET PROFIT RULES (FINAL)
-# ===============================
-
-def calculate_daily_target(mode: str, current_equity: float) -> float:
+class MainBot:
     """
-    Mode NORMAL:
-      - Modal awal 3$
-      - Target awal 30$ per hari
-      - Target naik kelipatan ×3 setiap harinya
-      - Setelah mencapai 3000$, kelipatan menjadi ×1 per hari (target tetap)
-
-    Mode MEME SNIPE:
-      - Target minimal 40$
-      - Pertumbuhan target harian ×1.5
-      - Setelah profit snipe mencapai total 3000$, kelipatan berubah ke ×1 per hari
+    Main execution file
+    - Menjalankan Normal Trading Bot
+    - Menjalankan Meme Sniper Bot
+    - Menghitung profit total harian
+    - Menerapkan target profit harian & multiplier
+    - Auto restart setiap 6 jam
+    - Auto close posisi lemah sebelum restart
+    - Pemisahan modal awal $3
     """
 
-    if mode == "NORMAL":
-        if current_equity < 3000:
-            return 30
-        else:
-            return 30  # flat daily after 3000
+    def __init__(self, config, secret_repo):
+        self.config = config
+        self.secret_repo = secret_repo
+        self.balance = 3.0  # modal awal
+        self.day_index_normal = 1
+        self.day_index_sniper = 1
+        self.engine_normal = EngineNormalWS(config, secret_repo)
+        self.engine_meme = EngineMemeWS(config, secret_repo)
+        self.running = True
+        self.last_restart = datetime.datetime.now()
 
-    if mode == "MEME":
-        if current_equity < 3000:
-            return 40
-        else:
-            return 40  # flat after 3000
+    # ======================================================
+    # LOAD SECRETS
+    # ======================================================
+    async def load_secrets(self):
+        await self.engine_normal.load_secrets()
+        await self.engine_meme.load_secrets()
+        log(colored("✅ All secrets loaded successfully", "green"))
 
-    return 30
+    # ======================================================
+    # START ENGINES
+    # ======================================================
+    async def start_engines(self):
+        await asyncio.gather(
+            self.engine_normal.ws_connect(),
+            self.engine_meme.ws_connect(),
+            self.monitor_profit_loop()
+        )
 
+    # ======================================================
+    # MONITOR PROFIT HARIAN
+    # ======================================================
+    async def monitor_profit_loop(self):
+        while self.running:
+            total_profit_normal = sum([o["qty"] for o in self.engine_normal.order_history])
+            total_profit_sniper = sum([o["qty"] for o in self.engine_meme.order_history])
 
-# ===============================
-# PEMILIHAN STRATEGI
-# ===============================
+            # Normal mode target
+            target_normal = self.engine_normal.target_profit_day * self.day_index_normal
+            if total_profit_normal >= target_normal:
+                self.day_index_normal += 1
+                # Adjust slot & leverage
+                self.engine_normal.slots["max"] += 0  # tetap 3 per run
+                self.engine_normal.adjust_leverage()
+                log(colored(f"🎯 Normal mode target harian tercapai, hari ke-{self.day_index_normal}", "green"))
 
-def load_strategy(mode: str):
-    if mode == "NORMAL":
-        return NormalStrategy()
-    if mode == "MEME":
-        return MemeSnipeStrategy()
-    raise Exception("Mode strategi tidak ditemukan")
+            # Meme sniper target
+            target_sniper = self.engine_meme.target_profit_day * self.day_index_sniper
+            if total_profit_sniper >= target_sniper:
+                self.day_index_sniper += 1
+                self.engine_meme.adjust_leverage()
+                log(colored(f"🎯 Meme sniper target harian tercapai, hari ke-{self.day_index_sniper}", "green"))
 
+            # Auto restart 6 jam
+            now = datetime.datetime.now()
+            if (now - self.last_restart).total_seconds() > 21600:
+                log(colored("🔄 Auto restart main bot", "cyan"))
+                await self.restart_engines()
+                self.last_restart = now
 
-# ===============================
-# FUNGSI UTAMA BOT
-# ===============================
+            await asyncio.sleep(5)
 
-async def run_bot():
-    log(colored("🚀 MEMULAI BOT TRADING BITGET...", "yellow"))
+    # ======================================================
+    # RESTART ENGINES
+    # ======================================================
+    async def restart_engines(self):
+        log(colored("🛠 Restarting engines...", "yellow"))
+        self.engine_normal.slots = {"long":0,"short":0,"max":3}
+        self.engine_meme.slots = {"long":0,"short":0,"max":2}
+        # Close posisi lemah sebelum restart
+        await self.close_weak_positions()
 
-    engine = TradingEngine(
-        api_key=API_KEY,
-        api_secret=API_SECRET,
-        api_pass=API_PASS
-    )
+    async def close_weak_positions(self):
+        # Placeholder: implementasi auto-close posisi floating profit kecil
+        log(colored("💡 Closing weak positions if any", "yellow"))
+        # Bisa loop order_history dan cek floating profit
 
-    tracker = ProfitTracker()
-    risk = RiskManager()
-    strategy = load_strategy(MODE)
-
-    log(colored(f"🔧 MODE BOT: {MODE}", "cyan"))
-
-    last_reset_day = now_wib().day
-
-    while True:
-        try:
-            # === RESET PROFIT HARIAN SAAT GANTI HARI (WIB) ===
-            if now_wib().day != last_reset_day:
-                tracker.reset_daily_profit()
-                last_reset_day = now_wib().day
-                log(colored("📆 Hari baru — profit harian direset!", "green"))
-
-            equity = await engine.get_wallet_balance()
-            if equity is None:
-                log("Gagal membaca balance... retry 5 detik")
-                await asyncio.sleep(5)
-                continue
-
-            daily_target = calculate_daily_target(MODE, equity)
-            current_profit = tracker.get_daily_profit()
-
-            log(f"[EQUITY] {equity:.4f} | [PROFIT HARIAN] {current_profit:.4f} / {daily_target}")
-
-            # === CEK APAKAH TARGET SUDAH TERCAPAI ===
-            target_hit = current_profit >= daily_target
-
-            if target_hit:
-                log(colored("🎯 TARGET HARIAN TERCAPAI — ENTRY hanya pada peluang sempurna!", "green"))
-
-            # === AMBIL DATA MARKET ===
-            market_data = await engine.get_market_data(strategy.symbol)
-            if market_data is None:
-                await asyncio.sleep(2)
-                continue
-
-            # === HITUNG SIGNAL STRATEGI ===
-            signal = strategy.generate_signal(
-                price=market_data["price"],
-                candles=market_data["candles"],
-                orderbook=market_data["orderbook"],
-                target_met=target_hit
-            )
-
-            if signal is None:
-                await asyncio.sleep(1)
-                continue
-
-            # === CEK RISIKO ===
-            if not risk.check(signal, equity):
-                log(colored("⚠️ Risiko tidak layak — entry dibatalkan", "red"))
-                await asyncio.sleep(1)
-                continue
-
-            # === HITUNG SIZE ORDER (menggunakan modal 3$) ===
-            size = risk.calculate_position_size(
-                equity=equity,
-                base_capital=3  # sesuai permintaan: modal fix 3$
-            )
-
-            # === EKSEKUSI ORDER ===
-            order = await engine.execute_order(
-                symbol=strategy.symbol,
-                side=signal["side"],
-                qty=size,
-                tp=signal["tp"],
-                sl=signal["sl"]
-            )
-
-            if order:
-                tracker.update_profit(order)
-
-            await asyncio.sleep(1)
-
-        except Exception as e:
-            log(colored(f"❌ ERROR: {str(e)}", "red"))
-            traceback.print_exc()
-            await asyncio.sleep(3)
-
-
-# ===============================
-# ENTRY POINT
-# ===============================
-
+# ======================================================
+# MAIN RUN
+# ======================================================
 if __name__ == "__main__":
-    try:
-        asyncio.run(run_bot())
-    except KeyboardInterrupt:
-        log(colored("🛑 BOT DIHENTIKAN OLEH USER", "magenta"))
-            
+    import config
+    secret_repo_url = config.SECRET_REPO_URL
+    bot = MainBot(config.CONFIG, secret_repo_url)
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(bot.load_secrets())
+    loop.run_until_complete(bot.start_engines())
+        # ======================================================
+    # HITUNG KELIPATAN TARGET PROFIT
+    # ======================================================
+    def compute_target_profit(self):
+        # Normal mode
+        base_normal = self.engine_normal.target_profit_day
+        multiplier_normal = 3 ** (self.day_index_normal - 1)
+        self.engine_normal.current_target = min(base_normal * multiplier_normal, 3000)
+
+        # Meme sniper mode
+        base_sniper = self.engine_meme.target_profit_day
+        multiplier_sniper = 1.5 ** (self.day_index_sniper - 1)
+        self.engine_meme.current_target = min(base_sniper * multiplier_sniper, 3000)
+
+    # ======================================================
+    # PEMBAGIAN MARGIN NORMAL VS SNIPER
+    # ======================================================
+    def compute_margin_allocation(self):
+        total_balance = self.balance
+        if self.day_index_normal == 1:
+            self.engine_normal.balance = total_balance * 0.6
+            self.engine_meme.balance = total_balance * 0.4
+        elif self.day_index_normal == 2:
+            self.engine_normal.balance = total_balance * 0.4
+            self.engine_meme.balance = total_balance * 0.3
+            # sisanya 30% tidak digunakan
+        elif self.day_index_normal >=3:
+            # Maksimal order 6
+            self.engine_normal.slots["max"] = 3
+            self.engine_meme.slots["max"] = 3
+            self.engine_normal.balance = total_balance * 0.5
+            self.engine_meme.balance = total_balance * 0.3
+            # sisanya 20% cadangan
+                # ======================================================
+    # MAIN RUN LOOP FINAL
+    # ======================================================
+    async def start_engines(self):
+        await self.load_secrets()
+        self.compute_target_profit()
+        self.compute_margin_allocation()
+        await asyncio.gather(
+            self.engine_normal.ws_connect(),
+            self.engine_meme.ws_connect(),
+            self.monitor_profit_loop(),
+            self.execution_loop()
+        )
+
+    # ======================================================
+    # EXECUTION LOOP – ENTRY PELUANG SEMPURNA
+    # ======================================================
+    async def execution_loop(self):
+        while self.running:
+            for symbol in self.config["normal_pairs"]:
+                signal = self.engine_normal.generate_signal_normal(symbol)
+                if signal and self.engine_normal.can_open_order(signal.replace("_scalp","")):
+                    qty = self.engine_normal.balance / self.engine_normal.slots["max"]
+                    await self.engine_normal.execute_order(symbol, signal.replace("_scalp",""), qty)
+
+            for symbol in self.config["meme_pairs"]:
+                signal = self.engine_meme.generate_signal_meme(symbol)
+                if signal and self.engine_meme.can_open_order(signal.replace("_scalp","")):
+                    qty = self.engine_meme.balance / self.engine_meme.slots["max"]
+                    await self.engine_meme.execute_order(symbol, signal.replace("_scalp",""), qty)
+
+            # Update kelipatan target & margin setiap loop
+            self.compute_target_profit()
+            self.compute_margin_allocation()
+
+            await asyncio.sleep(0.3)  # ultra fast, tetap ±0.3 detik per tick
