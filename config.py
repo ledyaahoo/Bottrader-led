@@ -15,7 +15,8 @@ NORMAL_PAIRS = [
     "ETHUSDT",
     "SOLUSDT",
     "LTCUSDT",
-    "ASTRUSDT"
+    "ASTERUSDT",
+    "HYPEUSDT"
 ]
 
 # Sniper Mode → Volatil & meme coins
